@@ -1,5 +1,6 @@
 import streamlit as st
 from dotenv import load_dotenv
+import os
 from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
@@ -18,7 +19,6 @@ def get_pdf_text(pdf_docs):
             text += page.extract_text()
     return text
 
-
 def get_text_chunks(text):
     text_splitter = CharacterTextSplitter(
         separator="\n",
@@ -29,17 +29,19 @@ def get_text_chunks(text):
     chunks = text_splitter.split_text(text)
     return chunks
 
-
 def get_vectorstore(text_chunks):
-    embeddings = OpenAIEmbeddings()
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if not openai_api_key:
+        raise ValueError("No OpenAI API key found in environment variables")
+    
+    embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
     # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vectorstore
 
-
 def get_conversation_chain(vectorstore):
-    llm = ChatOpenAI()
-      #llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
+    # llm = ChatOpenAI()
+    llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
 
     memory = ConversationBufferMemory(
         memory_key='chat_history', return_messages=True)
@@ -49,7 +51,6 @@ def get_conversation_chain(vectorstore):
         memory=memory
     )
     return conversation_chain
-
 
 def handle_userinput(user_question):
     if st.session_state.conversation:
